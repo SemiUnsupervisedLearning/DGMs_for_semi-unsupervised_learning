@@ -15,7 +15,6 @@ import utils.preprocessing as pp
 from utils.utils import touch
 from scipy.stats import mode
 import datetime
-from data.svhn import _download
 from keras import datasets as kdatasets
 """ Class for data to handle loading and arranging """
 
@@ -55,16 +54,12 @@ def rgb2gray(images):
     return np.dot(images, [0.2989, 0.5870, 0.1140])
 
 
-def load_dataset(dataset_name, preproc=True, threshold=0.1, greyscale=False, normalize=True, extra=True):
-    """ load up data, either mnist, cifar10, cifar100 or svhn
+def load_dataset(dataset_name, preproc=True, threshold=0.1):
+    """ load up data, either mnist, cifar10, cifar100 or feminist
     from mnist, optional arguments:
     'threshold' keeps only elements of data where over the dataset their
      variance > threshold. This is to prevent perfect matching to
      pixels in e.g. the corners of the image that are always =0
-
-    for svhn, optional arguments:
-    'preproc' to do optional PCA extraction of data
-    'greyscale' to convert to greyscale images
     """
 
     if dataset_name == 'mnist':
@@ -115,76 +110,6 @@ def load_dataset(dataset_name, preproc=True, threshold=0.1, greyscale=False, nor
         f_enc, f_dec = lambda x: x, lambda x: x
         n_x = x_train.shape[1]
 
-    elif dataset_name == 'svhn':
-
-        x_train, y_train, x_test, y_test, _, _ = _download(extra=extra, normalize=normalize)
-        # train = scipy.io.loadmat('./data/SVHN/train_32x32.mat')
-        # train_x = train['X'].swapaxes(0, 1).T.reshape((train['X'].shape[3], -1)).T
-        # train_y = train['y'].reshape((-1)) - 1
-
-        # test = scipy.io.loadmat('./data/SVHN/test_32x32.mat')
-        # test_x = test['X'].swapaxes(0, 1).T.reshape((test['X'].shape[3], -1)).T
-        # test_y = test['y'].reshape((-1)) - 1
-
-        # extra = scipy.io.loadmat('./data/SVHN/extra_32x32.mat')
-        # extra_x = extra['X'].swapaxes(0, 1).T.reshape((extra['X'].shape[3], -1)).T
-        # extra_y = extra['y'].reshape((-1)) - 1
-
-
-        # extra_x = extra_x.astype(np.float32) / 256.
-        y_train = np_utils.to_categorical(y_train)
-        y_test = np_utils.to_categorical(y_test)
-        # y_extra = np_utils.to_categorical(extra_y)
-
-        # x_train = np.hstack((train_x, extra_x))
-        # y_train = np.vstack((y_train, y_extra))
-
-        binarize = False
-        x_dist = 'Gaussian'
-
-        if greyscale == True:
-            x_train = x_train.reshape((-1, 3, 32 * 32))
-            x_test = x_test.reshape((-1, 3, 32 * 32))
-            x_train = rgb2gray(x_train.swapaxes(1, 2)).astype(np.float32)
-            x_test = rgb2gray(x_test.swapaxes(1, 2)).astype(np.float32)
-
-        n_y = 10
-
-        if preproc == True:
-            file_path = './data/svhn_PCA_'+str(normalize)+'_'+str(greyscale)+'.pkl'
-            if not os.path.isfile(file_path):
-                touch(file_path)
-                if greyscale == True:
-                    cutoff = 500
-                elif greyscale == False:
-                    cutoff = 1000
-                f_enc, f_dec, pca_params = pp.PCA(x_train.T[:,:10000],
-                                                  cutoff=cutoff, toFloat=True)
-                f = open(file_path,"wb")
-                pickle.dump(pca_params,f)
-                f.close()
-            else:
-                pca_params = pickle.load(open(file_path, "rb" ))
-                f_enc, f_dec = pp.PCA_encdec(pca_params['eigvec'],
-                                          pca_params['eigval'],
-                                          pca_params['x_center'],
-                                          pca_params['x_sd'], toFloat=True)
-            x_train = f_enc(x_train).astype(np.float32)
-            x_test = f_enc(x_test).astype(np.float32)
-        elif preproc == False:
-            if greyscale == True:
-                x_train = x_train.astype(np.float32) / 256.
-                x_test = x_test.astype(np.float32) / 256.
-                binarize = True
-                x_dist = 'Bernoulli'
-            elif greyscale == False:
-                if normalize == False:
-                    x_train = x_train.astype(np.float32) / 256.
-                    x_test = x_test.astype(np.float32) / 256.
-            f_enc, f_dec = lambda x: x, lambda x: x
-
-
-        n_x = x_train.shape[1]
 
     return x_train, y_train, x_test, y_test, binarize, x_dist, n_y, n_x, f_enc, f_dec
 
